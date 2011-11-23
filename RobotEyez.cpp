@@ -56,6 +56,9 @@ char *pBuffer = NULL;
 // Sample grabber callback object
 MySampleGrabberCallback mySampleGrabberCallback;
 
+// Frame transform filter object
+FrameTransformFilter frameTransformFilter;
+
 void exit_message(const char* error_message, int error)
 {
 	// Print an error message
@@ -379,7 +382,12 @@ int main(int argc, char **argv)
 	hr = pGraph->AddFilter(pSampleGrabberFilter, L"SampleGrab");
 	if (hr != S_OK)
 		exit_message("Could not add Sample Grabber to filter graph", 1);
-
+	
+	// Add frameTransformFilter to graph
+	hr = pGraph->AddFilter(&frameTransformFilter, L"FrameTransform");
+	if (hr != S_OK)
+		exit_message("Could not add frame transform filter to filter graph", 1);
+	
 	// Create Null Renderer filter
 	hr = CoCreateInstance(CLSID_NullRenderer, NULL,
 		CLSCTX_INPROC_SERVER, IID_IBaseFilter,
@@ -404,7 +412,7 @@ int main(int argc, char **argv)
 	{
 		hr = pBuilder->RenderStream(
 				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
-				pCap, NULL, NULL);
+				pCap, &frameTransformFilter, NULL);
 		if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
 			exit_message("Could not render preview video stream", 1);
 	}
