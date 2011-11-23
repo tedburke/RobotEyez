@@ -190,3 +190,27 @@ HRESULT FrameTransformFilter::DecideBufferSize(
     return S_OK;
 }
 
+HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDest)
+{
+    // Get pointers to the underlying buffers.
+    BYTE *pBufferIn, *pBufferOut;
+    HRESULT hr = pSource->GetPointer(&pBufferIn);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+    hr = pDest->GetPointer(&pBufferOut);
+    if (FAILED(hr))
+    {
+        return hr;
+    }
+    // Process the data.
+	//DWORD cbDest = EncodeFrame(pBufferIn, pBufferOut);
+	memcpy(pBufferOut, pBufferIn, pSource->GetSize());
+    //KASSERT((long)cbDest <= pDest->GetSize());
+
+    //pDest->SetActualDataLength(cbDest);
+    pDest->SetActualDataLength(pSource->GetActualDataLength());
+    pDest->SetSyncPoint(TRUE);
+    return S_OK;
+}

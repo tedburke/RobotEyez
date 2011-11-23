@@ -25,4 +25,6 @@ public:
 		const CMediaType *mtIn, const CMediaType *mtOut);
 	HRESULT FrameTransformFilter::DecideBufferSize(
 		IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *pProp);
+	HRESULT FrameTransformFilter::Transform(
+		IMediaSample *pSource, IMediaSample *pDest);
 };
