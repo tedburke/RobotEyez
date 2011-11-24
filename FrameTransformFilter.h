@@ -3,6 +3,12 @@
 // Written by Ted Burke - last modified 23-11-2011
 //
 
+#ifndef FRAMETRANSFORMFILTER_H
+#define FRAMETRANSFORMFILTER_H
+
+#include <dshow.h>
+#include <streams.h>
+
 // I generated the following GUID for this filter using the
 // online GUID generator at http://www.guidgen.com/
 // {d6ece2e3-72aa-4157-b489-52c3fd693ce9}
@@ -14,17 +20,14 @@ class FrameTransformFilter : public CTransformFilter
 {
 public:
 	// Constructor
-	FrameTransformFilter::FrameTransformFilter();
+	FrameTransformFilter();
 	
 	// Methods required for filters derived from CTransformFilter
-	HRESULT FrameTransformFilter::CheckInputType(
-		const CMediaType *mtIn);
-	HRESULT FrameTransformFilter::GetMediaType(
-		int iPosition, CMediaType *pMediaType);
-	HRESULT FrameTransformFilter::CheckTransform(
-		const CMediaType *mtIn, const CMediaType *mtOut);
-	HRESULT FrameTransformFilter::DecideBufferSize(
-		IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *pProp);
-	HRESULT FrameTransformFilter::Transform(
-		IMediaSample *pSource, IMediaSample *pDest);
+	HRESULT CheckInputType(const CMediaType *mtIn);
+	HRESULT GetMediaType(int iPosition, CMediaType *pMediaType);
+	HRESULT CheckTransform(const CMediaType *mtIn, const CMediaType *mtOut);
+	HRESULT DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *pProp);
+	HRESULT Transform(IMediaSample *pSource, IMediaSample *pDest);
 };
+
+#endif // FRAMETRANSFORMFILTER_H

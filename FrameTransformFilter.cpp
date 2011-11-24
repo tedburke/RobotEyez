@@ -18,7 +18,7 @@
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 { 
-   /* Initialize any private variables here. */
+	/* Initialize any private variables here. */
 }
 
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
