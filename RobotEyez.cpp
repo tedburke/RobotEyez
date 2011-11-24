@@ -22,6 +22,8 @@ IGraphBuilder *pGraph = NULL;
 ICaptureGraphBuilder2 *pBuilder = NULL;
 IBaseFilter *pCap = NULL;
 IBaseFilter *pTransform = NULL;
+//IPin *pPinOut = NULL;
+//IPin *pPinIn = NULL;
 IMediaControl *pMediaControl = NULL;
 
 void exit_message(const char* error_message, int error)
@@ -32,6 +34,8 @@ void exit_message(const char* error_message, int error)
 	
 	// Clean up DirectShow / COM stuff
 	if (pMediaControl != NULL) pMediaControl->Release();
+	//if (pPinOut != NULL) pPinOut->Release();
+	//if (pPinIn != NULL) pPinIn->Release();
 	if (pTransform != NULL) pTransform->Release();
 	if (pCap != NULL) pCap->Release();
 	if (pBuilder != NULL) pBuilder->Release();
@@ -281,6 +285,7 @@ int main(int argc, char **argv)
 	pFrameTransformFilter = new FrameTransformFilter();
 	if (!pFrameTransformFilter)
 		exit_message("Could not create frame transform filter", 1);
+	// NB Object will be automatically deleted when pTransform is released
 	hr = pFrameTransformFilter->QueryInterface(IID_IBaseFilter, reinterpret_cast<void**>(&pTransform));
 	if (hr != S_OK)
 		exit_message("Could not get IBaseFilter interface to frame transform filter", 1);
@@ -290,6 +295,30 @@ int main(int argc, char **argv)
 	if (hr != S_OK)
 		exit_message("Could not add frame transform filter to filter graph", 1);
 	
+	// Try to intelligently connect the capture filter
+	// to the transform filter.
+	/*
+	hr = pBuilder->FindPin(
+			pCap, PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE,
+			&MEDIATYPE_Video, TRUE, 0, &pPinOut);
+	if (hr != S_OK)
+		exit_message("Couldn't get capture filter output pin", 1);
+	hr = pBuilder->FindPin(
+			pTransform, PINDIR_INPUT, &PIN_CATEGORY_CAPTURE,
+			&MEDIATYPE_Video, TRUE, 0, &pPinIn);
+	if (hr != S_OK)
+		exit_message("Couldn't get transform filter input pin", 1);
+	hr = pGraph->Connect(pPinOut, pPinIn);
+	if (hr != S_OK)
+		exit_message("Could not connect capture filter to transform filter", 1);
+	*/
+	
+	hr = pBuilder->RenderStream(
+			&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
+			pCap, pTransform, NULL);
+	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
+		exit_message("Could not render preview video stream", 1);
+		
 	// Connect up the filter graph's preview stream
 	/*
 	hr = pBuilder->RenderStream(
@@ -298,11 +327,6 @@ int main(int argc, char **argv)
 	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
 		exit_message("Could not render preview video stream", 1);
 	*/
-	hr = pBuilder->RenderStream(
-			&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
-			pCap, pTransform, NULL);
-	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
-		exit_message("Could not render preview video stream", 1);
 	
 	// Get media control interfaces to graph builder object
 	hr = pGraph->QueryInterface(IID_IMediaControl,

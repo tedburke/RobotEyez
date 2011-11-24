@@ -18,13 +18,14 @@
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 { 
-	/* Initialize any private variables here. */
+	// Initialize any private variables here
 }
 
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 {
     if ((mtIn->majortype != MEDIATYPE_Video) ||
         (mtIn->subtype != MEDIASUBTYPE_RGB8) ||
+        //(mtIn->subtype != MEDIASUBTYPE_RGB24) ||
         (mtIn->formattype != FORMAT_VideoInfo) || 
         (mtIn->cbFormat < sizeof(VIDEOINFOHEADER)))
     {
@@ -35,12 +36,15 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
         reinterpret_cast<VIDEOINFOHEADER*>(mtIn->pbFormat);
     if ((pVih->bmiHeader.biBitCount != 8) ||
         (pVih->bmiHeader.biCompression != BI_RGB))
+    //if ((pVih->bmiHeader.biBitCount != 24) ||
+    //    (pVih->bmiHeader.biCompression != BI_RGB))
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
 
     // Check the palette table.
-    if (pVih->bmiHeader.biClrUsed > PALETTE_ENTRIES(pVih))
+    /*
+	if (pVih->bmiHeader.biClrUsed > PALETTE_ENTRIES(pVih))
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
@@ -49,6 +53,7 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
+	*/
 
     // Everything is good.
     return S_OK;
@@ -64,20 +69,25 @@ HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType
     if (iPosition == 0)
     {
         HRESULT hr = m_pInput->ConnectionMediaType(pMediaType);
-        if (FAILED(hr))
+        
+		if (FAILED(hr))
         {
             return hr;
         }
-        FOURCCMap fccMap = FCC('MRLE'); 
+        /*
+		FOURCCMap fccMap = FCC('MRLE'); 
         pMediaType->subtype = static_cast<GUID>(fccMap);
         pMediaType->SetVariableSize();
         pMediaType->SetTemporalCompression(FALSE);
+		*/
 
         ASSERT(pMediaType->formattype == FORMAT_VideoInfo);
         VIDEOINFOHEADER *pVih =
             reinterpret_cast<VIDEOINFOHEADER*>(pMediaType->pbFormat);
-        pVih->bmiHeader.biCompression = BI_RLE8;
-        pVih->bmiHeader.biSizeImage = DIBSIZE(pVih->bmiHeader); 
+		//pVih->bmiHeader.biCompression = BI_RLE8;
+		pVih->bmiHeader.biCompression = BI_RGB;
+        pVih->bmiHeader.biSizeImage = DIBSIZE(pVih->bmiHeader);
+		
         return S_OK;
     }
     // else
@@ -94,7 +104,8 @@ HRESULT FrameTransformFilter::CheckTransform(
     }
 
     // Check the subtype and format type.
-    FOURCCMap fccMap = FCC('MRLE'); 
+    /*
+	FOURCCMap fccMap = FCC('MRLE'); 
     if (mtOut->subtype != static_cast<GUID>(fccMap))
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
@@ -104,6 +115,7 @@ HRESULT FrameTransformFilter::CheckTransform(
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
+	*/
 
     // Compare the bitmap information against the input type.
     ASSERT(mtIn->formattype == FORMAT_VideoInfo);
@@ -111,7 +123,9 @@ HRESULT FrameTransformFilter::CheckTransform(
     BITMAPINFOHEADER *pBmiIn = HEADER(mtIn->pbFormat);
     if ((pBmiOut->biPlanes != 1) ||
         (pBmiOut->biBitCount != 8) ||
-        (pBmiOut->biCompression != BI_RLE8) ||
+        //(pBmiOut->biCompression != BI_RLE8) ||
+        //(pBmiOut->biBitCount != 8) ||
+        (pBmiOut->biCompression != BI_RGB) ||
         (pBmiOut->biWidth != pBmiIn->biWidth) ||
         (pBmiOut->biHeight != pBmiIn->biHeight))
     {
@@ -133,7 +147,8 @@ HRESULT FrameTransformFilter::CheckTransform(
     }
 
     // Check the palette table.
-    if (pBmiOut->biClrUsed != pBmiIn->biClrUsed)
+    /*
+	if (pBmiOut->biClrUsed != pBmiIn->biClrUsed)
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
@@ -146,6 +161,7 @@ HRESULT FrameTransformFilter::CheckTransform(
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
+	*/
 
     // Everything is good.
     return S_OK;
