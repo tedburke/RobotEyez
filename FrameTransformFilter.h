@@ -22,12 +22,23 @@ public:
 	// Constructor
 	FrameTransformFilter();
 	
+	// Provide a function to allow a PGM file copy of the
+	// next frame to be requested
+	void saveNextFrameToPGMFile(char *filename);
+	int filesSaved();
+	
 	// Methods required for filters derived from CTransformFilter
 	HRESULT CheckInputType(const CMediaType *mtIn);
 	HRESULT GetMediaType(int iPosition, CMediaType *pMediaType);
 	HRESULT CheckTransform(const CMediaType *mtIn, const CMediaType *mtOut);
 	HRESULT DecideBufferSize(IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *pProp);
 	HRESULT Transform(IMediaSample *pSource, IMediaSample *pDest);
+	
+private:
+	// Flag to save next frame to PGM file
+	char filename[200];
+	int save_to_PGM;
+	int files_saved;
 };
 
 #endif // FRAMETRANSFORMFILTER_H

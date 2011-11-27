@@ -49,10 +49,14 @@ void exit_message(const char* error_message, int error)
 int main(int argc, char **argv)
 {
 	// Capture settings
-	int capture_duration = 2000;
+	int delay = 2000;
+	int period = 1000;
+	int frames = 10;
+	int number_files = 0;
 	int list_devices = 0;
 	int device_number = 1;
 	char device_name[100];
+	char filename[200];
 	
 	// Other variables
 	char char_buffer[100];
@@ -67,7 +71,10 @@ int main(int argc, char **argv)
 	
 	// Parse command line arguments. Available options:
 	//
-	//		/duration DURATION_IN_MILLISECONDS
+	//		/delay DELAY_IN_MILLISECONDS
+	//		/period PERIOD_IN_MILLISECONDS
+	//		/frames NUMBER_OF_FRAMES
+	//		/number_files
 	//		/devnum DEVICE_NUMBER
 	//		/devname DEVICE_NAME
 	//		/devlist
@@ -81,14 +88,37 @@ int main(int argc, char **argv)
 			// Set flag to list devices rather than capture image
 			list_devices = 1;
 		}
-		else if (strcmp(argv[n], "/duration") == 0)
+		else if (strcmp(argv[n], "/delay") == 0)
 		{
 			// Set snapshot delay to specified value
-			if (++n < argc) capture_duration = atoi(argv[n]);
-			else exit_message("Error: invalid duration specified", 1);
+			if (++n < argc) delay = atoi(argv[n]);
+			else exit_message("Error: invalid delay specified", 1);
 			
-			if (capture_duration <= 0)
-				exit_message("Error: invalid duration specified", 1);
+			if (delay <= 0)
+				exit_message("Error: invalid delay specified", 1);
+		}
+		else if (strcmp(argv[n], "/period") == 0)
+		{
+			// Set time period between captures
+			if (++n < argc) period = atoi(argv[n]);
+			else exit_message("Error: invalid period specified", 1);
+			
+			if (period <= 0)
+				exit_message("Error: invalid period specified", 1);
+		}
+		else if (strcmp(argv[n], "/frames") == 0)
+		{
+			// Set number of frames to capture
+			if (++n < argc) frames = atoi(argv[n]);
+			else exit_message("Error: invalid number of frames specified", 1);
+			
+			if (frames <= 0)
+				exit_message("Error: invalid number of frames specified", 1);
+		}
+		else if (strcmp(argv[n], "/number_files") == 0)
+		{
+			// Set flag to include numbers in image filenames
+			number_files = 1;
 		}
 		else if (strcmp(argv[n], "/devnum") == 0)
 		{
@@ -330,7 +360,9 @@ int main(int argc, char **argv)
 	// http://msdn.microsoft.com/en-us/library/windows/desktop/dd407349%28v=vs.85%29.aspx
 	//
 	MSG msg;	
-	DWORD t_start = GetTickCount(); // Remember start time
+	DWORD start_time = GetTickCount(); // Remember start time
+	DWORD last_frame_time = start_time;
+	DWORD current_time = start_time;
 	while(1)
 	{
 		// Using PeekMessage instead of GetMessage so that
@@ -340,8 +372,26 @@ int main(int argc, char **argv)
 		// has elapsed.
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) == 0)
 		{
+			// Exit if requested number of frames have been captured
+			if (pFrameTransformFilter->filesSaved() >= frames) break;
+			
 			// Check if capture time has elapsed
-			if (GetTickCount() >= t_start + capture_duration) break;
+			current_time = GetTickCount();
+			if (current_time < start_time + delay) continue;
+			if (current_time < last_frame_time + period) continue;
+			
+			// Save next frame to PGM file
+			if (number_files)
+			{
+				sprintf(filename, "frame%04d.pgm",
+					pFrameTransformFilter->filesSaved() + 1);
+			}
+			else
+			{
+				sprintf(filename, "frame.pgm");
+			}
+			pFrameTransformFilter->saveNextFrameToPGMFile(filename);
+			last_frame_time = current_time;
 		}
 		else
 		{
@@ -351,7 +401,7 @@ int main(int argc, char **argv)
 			DispatchMessage(&msg);
 		}
 	}
-	
+
 	// Stop the graph
 	hr = pMediaControl->Stop();
 	if (hr != S_OK) exit_message("Error stopping graph", 1);

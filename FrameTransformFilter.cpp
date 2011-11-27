@@ -15,13 +15,28 @@
 #include <initguid.h>
 #include "FrameTransformFilter.h"
 
-#define VIDEO_WIDTH 640
-#define VIDEO_HEIGHT 480
+#define FRAME_WIDTH 640
+#define FRAME_HEIGHT 480
 
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 { 
 	// Initialize any private variables here
+	save_to_PGM = 0;
+	files_saved = 0;
+}
+
+void FrameTransformFilter::saveNextFrameToPGMFile(char *output_filename)
+{
+	// Remember filename and set flag to request dump
+	// of next frame to PGM file
+	strncpy(filename, output_filename, 200);
+	save_to_PGM = 1;
+}
+
+int FrameTransformFilter::filesSaved()
+{
+	return files_saved;
 }
 
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
@@ -34,8 +49,8 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
         (mtIn->formattype != FORMAT_VideoInfo) || 
         (mtIn->cbFormat < sizeof(VIDEOINFOHEADER)) ||
 		(pVih->bmiHeader.biPlanes != 1) ||
-		(pVih->bmiHeader.biWidth != VIDEO_WIDTH) ||
-		(pVih->bmiHeader.biHeight != VIDEO_HEIGHT) ||
+		(pVih->bmiHeader.biWidth != FRAME_WIDTH) ||
+		(pVih->bmiHeader.biHeight != FRAME_HEIGHT) ||
 		(pVih->bmiHeader.biBitCount != 24) ||
         (pVih->bmiHeader.biCompression != BI_RGB))
     {
@@ -64,8 +79,8 @@ HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType
 	pVih->bmiHeader.biPlanes = 1;
 	pVih->bmiHeader.biBitCount = 24;
 	pVih->bmiHeader.biCompression = BI_RGB;
-	pVih->bmiHeader.biWidth = VIDEO_WIDTH;
-	pVih->bmiHeader.biHeight = VIDEO_HEIGHT;
+	pVih->bmiHeader.biWidth = FRAME_WIDTH;
+	pVih->bmiHeader.biHeight = FRAME_HEIGHT;
 	
 	return S_OK;
 }
@@ -158,6 +173,37 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
 		pBufferOut[n++] = val;
 		pBufferOut[n++] = val;
 		pBufferOut[n++] = val;
+	}
+	
+	// Output greyscale image to PGM file if flag is set
+	FILE *f;
+	if (save_to_PGM)
+	{
+		if (f = fopen(filename, "w"))
+		{
+			// Write current frame to PGM file
+			fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n%d\n",
+					FRAME_HEIGHT, FRAME_WIDTH);
+			n = 0;
+			for (int y=0 ; y<FRAME_HEIGHT ; ++y)
+			{
+				for (int x=0 ; x<FRAME_WIDTH ; ++x)
+				{
+					fprintf(f, "%d ", pBufferOut[n]);
+					n += 3;
+				}
+				fprintf(f, "\n");
+			}
+			fclose(f);
+			
+			// Increment frame counter and reset flag
+			files_saved++;
+			save_to_PGM = 0;
+		}
+		else
+		{
+			fprintf(stderr, "Error opening file %s\n", filename);
+		}
 	}
 
     pDest->SetActualDataLength(pSource->GetActualDataLength());
