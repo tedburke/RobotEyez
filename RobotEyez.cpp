@@ -22,8 +22,6 @@ IGraphBuilder *pGraph = NULL;
 ICaptureGraphBuilder2 *pBuilder = NULL;
 IBaseFilter *pCap = NULL;
 IBaseFilter *pTransform = NULL;
-//IPin *pPinOut = NULL;
-//IPin *pPinIn = NULL;
 IMediaControl *pMediaControl = NULL;
 
 void exit_message(const char* error_message, int error)
@@ -34,8 +32,6 @@ void exit_message(const char* error_message, int error)
 	
 	// Clean up DirectShow / COM stuff
 	if (pMediaControl != NULL) pMediaControl->Release();
-	//if (pPinOut != NULL) pPinOut->Release();
-	//if (pPinIn != NULL) pPinIn->Release();
 	if (pTransform != NULL) pTransform->Release();
 	if (pCap != NULL) pCap->Release();
 	if (pBuilder != NULL) pBuilder->Release();
@@ -295,20 +291,12 @@ int main(int argc, char **argv)
 	if (hr != S_OK)
 		exit_message("Could not add frame transform filter to filter graph", 1);
 	
+	// Connect up the filter graph's preview stream
 	hr = pBuilder->RenderStream(
 			&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
 			pCap, pTransform, NULL);
 	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
 		exit_message("Could not render preview video stream", 1);
-	
-	// Connect up the filter graph's capture stream
-	/*
-	hr = pBuilder->RenderStream(
-			&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
-			pCap, pTransform, NULL);
-	if (hr != S_OK)
-		exit_message("Could not render capture video stream", 1);
-	*/
 	
 	// Get media control interfaces to graph builder object
 	hr = pGraph->QueryInterface(IID_IMediaControl,
@@ -343,12 +331,25 @@ int main(int argc, char **argv)
 	//
 	MSG msg;	
 	DWORD t_start = GetTickCount(); // Remember start time
-	while(GetMessage(&msg, NULL, 0, 0) > 0)
+	while(1)
 	{
-		TranslateMessage(&msg);
-		DispatchMessage(&msg);
-		
-		if (GetTickCount() >= t_start + capture_duration) break;
+		// Using PeekMessage instead of GetMessage so that
+		// the thread doesn't block when no messages are
+		// received which might otherwise prevent capture
+		// from stopping promptly when the specified time
+		// has elapsed.
+		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) == 0)
+		{
+			// Check if capture time has elapsed
+			if (GetTickCount() >= t_start + capture_duration) break;
+		}
+		else
+		{
+			// A message was available, so process it now
+			if (msg.message == WM_QUIT) break;
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
 	
 	// Stop the graph

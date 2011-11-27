@@ -93,7 +93,7 @@ HRESULT FrameTransformFilter::CheckTransform(
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
-
+	
     // Compare source and target rectangles.
     RECT rcImg;
     SetRect(&rcImg, 0, 0, pBmiIn->biWidth, pBmiIn->biHeight);
@@ -150,12 +150,14 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
 	
     // Process the data.
 	//memcpy(pBufferOut, pBufferIn, pSource->GetSize());
-	int n = 0;
-	while (n < pSource->GetSize())
+	int val = 0, n = 0, N = pSource->GetSize();
+	while (n < N)
 	{
-		pBufferOut[n] = 255 - pBufferIn[n]; ++n;
-		pBufferOut[n] = 255 - pBufferIn[n]; ++n;
-		pBufferOut[n] = 255 - pBufferIn[n]; ++n;		
+		// Modify current pixel
+		val = (pBufferIn[n] + pBufferIn[n+1] + pBufferIn[n+2]) / 3;
+		pBufferOut[n++] = val;
+		pBufferOut[n++] = val;
+		pBufferOut[n++] = val;
 	}
 
     pDest->SetActualDataLength(pSource->GetActualDataLength());
