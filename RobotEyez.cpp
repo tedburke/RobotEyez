@@ -12,6 +12,12 @@
 
 #include "FrameTransformFilter.h"
 
+// For some reason, this is not included in the
+// DirectShow headers. However, it's exported
+// by strmiids.lib, so I'm just declaring it
+// here as extern.
+EXTERN_C const CLSID CLSID_NullRenderer;
+
 // Used for various strings - filenames, command line args, etc
 // (also defined in FrameTransformFilter.cpp)
 #define STRING_LENGTH 200
@@ -26,6 +32,7 @@ IGraphBuilder *pGraph = NULL;
 ICaptureGraphBuilder2 *pBuilder = NULL;
 IBaseFilter *pCap = NULL;
 IBaseFilter *pTransform = NULL;
+IBaseFilter *pNullRenderer = NULL;
 IMediaControl *pMediaControl = NULL;
 
 void exit_message(const char* error_message, int error)
@@ -36,6 +43,7 @@ void exit_message(const char* error_message, int error)
 	
 	// Clean up DirectShow / COM stuff
 	if (pMediaControl != NULL) pMediaControl->Release();
+	if (pNullRenderer != NULL) pNullRenderer->Release();
 	if (pTransform != NULL) pTransform->Release();
 	if (pCap != NULL) pCap->Release();
 	if (pBuilder != NULL) pBuilder->Release();
@@ -63,6 +71,7 @@ int main(int argc, char **argv)
 	char filename[STRING_LENGTH];
 	int run_command = 0;
 	char command[STRING_LENGTH];
+	int show_renderer = 0;
 	
 	// Other variables
 	char char_buffer[STRING_LENGTH];
@@ -94,6 +103,11 @@ int main(int argc, char **argv)
 			// Set flag to list devices rather than capture image
 			list_devices = 1;
 		}
+		else if (strcmp(argv[n], "/preview") == 0)
+		{
+			// Set flag to list devices rather than capture image
+			show_renderer = 1;
+		}
 		else if (strcmp(argv[n], "/delay") == 0)
 		{
 			// Set snapshot delay to specified value
@@ -117,9 +131,6 @@ int main(int argc, char **argv)
 			// Set number of frames to capture
 			if (++n < argc) frames = atoi(argv[n]);
 			else exit_message("Error: invalid number of frames specified", 1);
-			
-			if (frames <= 0)
-				exit_message("Error: invalid number of frames specified", 1);
 		}
 		else if (strcmp(argv[n], "/number_files") == 0)
 		{
@@ -341,13 +352,34 @@ int main(int argc, char **argv)
 	if (hr != S_OK)
 		exit_message("Could not add frame transform filter to filter graph", 1);
 	
-	// Connect up the filter graph's preview stream
-	hr = pBuilder->RenderStream(
-			&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
-			pCap, pTransform, NULL);
+	// Create Null Renderer filter
+	hr = CoCreateInstance(CLSID_NullRenderer, NULL,
+		CLSCTX_INPROC_SERVER, IID_IBaseFilter,
+		(void**)&pNullRenderer);
+	if (hr != S_OK)
+		exit_message("Could not create Null Renderer filter", 1);
+	
+	// Add Null Renderer filter to filter graph
+	hr = pGraph->AddFilter(pNullRenderer, L"NullRender");
+	if (hr != S_OK)
+		exit_message("Could not add Null Renderer to filter graph", 1);
+
+		// Connect up the filter graph's preview stream
+	if (show_renderer)
+	{
+		hr = pBuilder->RenderStream(
+				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
+				pCap, pTransform, NULL);
+	}
+	else
+	{
+		hr = pBuilder->RenderStream(
+				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
+				pCap, pTransform, pNullRenderer);
+	}
 	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
 		exit_message("Could not render preview video stream", 1);
-	
+			
 	// Get media control interfaces to graph builder object
 	hr = pGraph->QueryInterface(IID_IMediaControl,
 					(void**)&pMediaControl);
@@ -395,8 +427,11 @@ int main(int argc, char **argv)
 		// has elapsed.
 		if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE) == 0)
 		{
-			// Exit if requested number of frames have been captured
-			if (pFrameTransformFilter->filesSaved() >= frames) break;
+			// Exit if requested number of frames have been captured.
+			// If number of frames specified was less than zero, then
+			// continue capturing indefinitely.
+			if ((pFrameTransformFilter->filesSaved() >= frames) &&
+				(frames >= 0)) break;
 			
 			// Check if capture time has elapsed
 			current_time = GetTickCount();
