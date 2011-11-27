@@ -2,6 +2,10 @@
 // FrameTransformFilter.cpp - FrameTransformFilter class
 // Written by Ted Burke - last modified 27-11-2011
 //
+// Copyright Ted Burke, 2011, All rights reserved.
+//
+// Website: http://batchloaf.wordpress.com
+//
 // Some of the code below is adapted from the MSDN
 // "Writing Transform Filters" tutorial.
 // http://msdn.microsoft.com/en-us/library/windows/desktop/dd391015(v=vs.85).aspx

@@ -2,6 +2,10 @@
 // FrameTransformFilter.h - FrameTransformFilter header file
 // Written by Ted Burke - last modified 27-11-2011
 //
+// Copyright Ted Burke, 2011, All rights reserved.
+//
+// Website: http://batchloaf.wordpress.com
+//
 
 #ifndef FRAMETRANSFORMFILTER_H
 #define FRAMETRANSFORMFILTER_H

@@ -7,7 +7,7 @@
 // Website: http://batchloaf.wordpress.com
 //
 
-// DirectShow header files
+// DirectShow header file
 #include <dshow.h>
 
 #include "FrameTransformFilter.h"
