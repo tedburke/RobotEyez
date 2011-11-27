@@ -18,8 +18,8 @@
 // here as extern.
 EXTERN_C const CLSID CLSID_NullRenderer;
 
-// Used for various strings - filenames, command line args, etc
-// (also defined in FrameTransformFilter.cpp)
+// Used for various strings - filenames, command line args,
+// etc (also defined in FrameTransformFilter.cpp)
 #define STRING_LENGTH 200
 
 // DirectShow objects

@@ -22,7 +22,7 @@
 DEFINE_GUID(CLSID_FrameTransformFilter, 
 0xd6ece2e3, 0x72aa, 0x4157, 0xb4, 0x89, 0x52, 0xc3, 0xfd, 0x69, 0x3c, 0xe9);
 
-// Frame transformer filter class
+// My frame transforming filter class
 class FrameTransformFilter : public CTransformFilter
 {
 public:
