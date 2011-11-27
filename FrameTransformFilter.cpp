@@ -18,6 +18,8 @@
 // (also defined in RobotEyez.cpp)
 #define STRING_LENGTH 200
 
+char text_buffer[2*STRING_LENGTH];
+
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 { 
@@ -215,7 +217,8 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
 			
 			// Execute frame processing program if user has
 			// specified one
-			if (run_command) system(command);
+			sprintf(text_buffer, "%s %s", command, filename);
+			if (run_command) system(text_buffer);
 		}
 		else
 		{

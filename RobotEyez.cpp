@@ -93,6 +93,7 @@ int main(int argc, char **argv)
 	//		/devnum DEVICE_NUMBER
 	//		/devname DEVICE_NAME
 	//		/devlist
+	//		/preview
 	//
 	int n = 1;
 	while (n < argc)
