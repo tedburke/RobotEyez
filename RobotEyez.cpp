@@ -92,6 +92,7 @@ int main(int argc, char **argv)
 	//		/number_files
 	//		/devnum DEVICE_NUMBER
 	//		/devname DEVICE_NAME
+	//		/command COMMAND_TO_RUN
 	//		/devlist
 	//		/preview
 	//
