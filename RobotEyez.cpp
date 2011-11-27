@@ -295,43 +295,26 @@ int main(int argc, char **argv)
 	if (hr != S_OK)
 		exit_message("Could not add frame transform filter to filter graph", 1);
 	
-	// Try to intelligently connect the capture filter
-	// to the transform filter.
-	/*
-	hr = pBuilder->FindPin(
-			pCap, PINDIR_OUTPUT, &PIN_CATEGORY_CAPTURE,
-			&MEDIATYPE_Video, TRUE, 0, &pPinOut);
-	if (hr != S_OK)
-		exit_message("Couldn't get capture filter output pin", 1);
-	hr = pBuilder->FindPin(
-			pTransform, PINDIR_INPUT, &PIN_CATEGORY_CAPTURE,
-			&MEDIATYPE_Video, TRUE, 0, &pPinIn);
-	if (hr != S_OK)
-		exit_message("Couldn't get transform filter input pin", 1);
-	hr = pGraph->Connect(pPinOut, pPinIn);
-	if (hr != S_OK)
-		exit_message("Could not connect capture filter to transform filter", 1);
-	*/
-	
 	hr = pBuilder->RenderStream(
 			&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
 			pCap, pTransform, NULL);
 	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
 		exit_message("Could not render preview video stream", 1);
-		
-	// Connect up the filter graph's preview stream
+	
+	// Connect up the filter graph's capture stream
 	/*
 	hr = pBuilder->RenderStream(
 			&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
 			pCap, pTransform, NULL);
-	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)
-		exit_message("Could not render preview video stream", 1);
+	if (hr != S_OK)
+		exit_message("Could not render capture video stream", 1);
 	*/
 	
 	// Get media control interfaces to graph builder object
 	hr = pGraph->QueryInterface(IID_IMediaControl,
 					(void**)&pMediaControl);
-	if (hr != S_OK) exit_message("Could not get media control interface", 1);
+	if (hr != S_OK)
+		exit_message("Could not get media control interface", 1);
 	
 	// Run graph
 	while(1)
@@ -348,8 +331,25 @@ int main(int argc, char **argv)
 		exit_message("Could not run filter graph", 1);
 	}
 	
-	// Wait for specified time delay (if any)
-	Sleep(capture_duration);
+	// A working message loop in the application thread
+	// seems to be required to keep things moving.
+	// Otherwise, the video preview window just goes white
+	// after a couple of seconds. This may be because
+	// some of the filters are instantiated directly here
+	// in the main function (e.g. the transform filter)
+	//
+	// See the following link for more info:
+	// http://msdn.microsoft.com/en-us/library/windows/desktop/dd407349%28v=vs.85%29.aspx
+	//
+	MSG msg;	
+	DWORD t_start = GetTickCount(); // Remember start time
+	while(GetMessage(&msg, NULL, 0, 0) > 0)
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+		
+		if (GetTickCount() >= t_start + capture_duration) break;
+	}
 	
 	// Stop the graph
 	hr = pMediaControl->Stop();

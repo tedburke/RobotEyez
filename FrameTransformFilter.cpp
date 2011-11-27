@@ -15,6 +15,9 @@
 #include <initguid.h>
 #include "FrameTransformFilter.h"
 
+#define VIDEO_WIDTH 640
+#define VIDEO_HEIGHT 480
+
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 { 
@@ -23,108 +26,67 @@ FrameTransformFilter::FrameTransformFilter()
 
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 {
-    if ((mtIn->majortype != MEDIATYPE_Video) ||
-        (mtIn->subtype != MEDIASUBTYPE_RGB8) ||
-        //(mtIn->subtype != MEDIASUBTYPE_RGB24) ||
-        (mtIn->formattype != FORMAT_VideoInfo) || 
-        (mtIn->cbFormat < sizeof(VIDEOINFOHEADER)))
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-
     VIDEOINFOHEADER *pVih = 
         reinterpret_cast<VIDEOINFOHEADER*>(mtIn->pbFormat);
-    if ((pVih->bmiHeader.biBitCount != 8) ||
+	
+    if ((mtIn->majortype != MEDIATYPE_Video) ||
+        (mtIn->subtype != MEDIASUBTYPE_RGB24) ||
+        (mtIn->formattype != FORMAT_VideoInfo) || 
+        (mtIn->cbFormat < sizeof(VIDEOINFOHEADER)) ||
+		(pVih->bmiHeader.biPlanes != 1) ||
+		(pVih->bmiHeader.biWidth != VIDEO_WIDTH) ||
+		(pVih->bmiHeader.biHeight != VIDEO_HEIGHT) ||
+		(pVih->bmiHeader.biBitCount != 24) ||
         (pVih->bmiHeader.biCompression != BI_RGB))
-    //if ((pVih->bmiHeader.biBitCount != 24) ||
-    //    (pVih->bmiHeader.biCompression != BI_RGB))
     {
-        return VFW_E_TYPE_NOT_ACCEPTED;
+		return VFW_E_TYPE_NOT_ACCEPTED;
     }
 
-    // Check the palette table.
-    /*
-	if (pVih->bmiHeader.biClrUsed > PALETTE_ENTRIES(pVih))
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-    DWORD cbPalette = pVih->bmiHeader.biClrUsed * sizeof(RGBQUAD);
-    if (mtIn->cbFormat < sizeof(VIDEOINFOHEADER) + cbPalette)
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-	*/
-
-    // Everything is good.
     return S_OK;
 }
 
 HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType)
 {
+	HRESULT hr;
+	
     ASSERT(m_pInput->IsConnected());
-    if (iPosition < 0)
-    {
-        return E_INVALIDARG;
-    }
-    if (iPosition == 0)
-    {
-        HRESULT hr = m_pInput->ConnectionMediaType(pMediaType);
-        
-		if (FAILED(hr))
-        {
-            return hr;
-        }
-        /*
-		FOURCCMap fccMap = FCC('MRLE'); 
-        pMediaType->subtype = static_cast<GUID>(fccMap);
-        pMediaType->SetVariableSize();
-        pMediaType->SetTemporalCompression(FALSE);
-		*/
+	
+    if (iPosition < 0) return E_INVALIDARG;
+	if (iPosition > 0) return VFW_S_NO_MORE_ITEMS;
 
-        ASSERT(pMediaType->formattype == FORMAT_VideoInfo);
-        VIDEOINFOHEADER *pVih =
-            reinterpret_cast<VIDEOINFOHEADER*>(pMediaType->pbFormat);
-		//pVih->bmiHeader.biCompression = BI_RLE8;
-		pVih->bmiHeader.biCompression = BI_RGB;
-        pVih->bmiHeader.biSizeImage = DIBSIZE(pVih->bmiHeader);
-		
-        return S_OK;
-    }
-    // else
-    return VFW_S_NO_MORE_ITEMS;
+	if (FAILED(hr = m_pInput->ConnectionMediaType(pMediaType))) return hr;
+
+	ASSERT(pMediaType->formattype == FORMAT_VideoInfo);
+	VIDEOINFOHEADER *pVih =
+		reinterpret_cast<VIDEOINFOHEADER*>(pMediaType->pbFormat);
+	pVih->bmiHeader.biCompression = BI_RGB;
+	pVih->bmiHeader.biSizeImage = DIBSIZE(pVih->bmiHeader);
+	pVih->bmiHeader.biPlanes = 1;
+	pVih->bmiHeader.biBitCount = 24;
+	pVih->bmiHeader.biCompression = BI_RGB;
+	pVih->bmiHeader.biWidth = VIDEO_WIDTH;
+	pVih->bmiHeader.biHeight = VIDEO_HEIGHT;
+	
+	return S_OK;
 }
 
 HRESULT FrameTransformFilter::CheckTransform(
     const CMediaType *mtIn, const CMediaType *mtOut)
 {
     // Check the major type.
-    if (mtOut->majortype != MEDIATYPE_Video)
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-
-    // Check the subtype and format type.
-    /*
-	FOURCCMap fccMap = FCC('MRLE'); 
-    if (mtOut->subtype != static_cast<GUID>(fccMap))
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-    if ((mtOut->formattype != FORMAT_VideoInfo) || 
+    if ((mtOut->majortype != MEDIATYPE_Video) ||
+		(mtOut->formattype != FORMAT_VideoInfo) || 
         (mtOut->cbFormat < sizeof(VIDEOINFOHEADER)))
     {
         return VFW_E_TYPE_NOT_ACCEPTED;
     }
-	*/
 
     // Compare the bitmap information against the input type.
     ASSERT(mtIn->formattype == FORMAT_VideoInfo);
     BITMAPINFOHEADER *pBmiOut = HEADER(mtOut->pbFormat);
     BITMAPINFOHEADER *pBmiIn = HEADER(mtIn->pbFormat);
     if ((pBmiOut->biPlanes != 1) ||
-        (pBmiOut->biBitCount != 8) ||
-        //(pBmiOut->biCompression != BI_RLE8) ||
-        //(pBmiOut->biBitCount != 8) ||
+        (pBmiOut->biBitCount != 24) ||
         (pBmiOut->biCompression != BI_RGB) ||
         (pBmiOut->biWidth != pBmiIn->biWidth) ||
         (pBmiOut->biHeight != pBmiIn->biHeight))
@@ -137,31 +99,11 @@ HRESULT FrameTransformFilter::CheckTransform(
     SetRect(&rcImg, 0, 0, pBmiIn->biWidth, pBmiIn->biHeight);
     RECT *prcSrc = &((VIDEOINFOHEADER*)(mtIn->pbFormat))->rcSource;
     RECT *prcTarget = &((VIDEOINFOHEADER*)(mtOut->pbFormat))->rcTarget;
-    if (!IsRectEmpty(prcSrc) && !EqualRect(prcSrc, &rcImg))
+    if ((!IsRectEmpty(prcSrc) && !EqualRect(prcSrc, &rcImg)) ||
+		(!IsRectEmpty(prcTarget) && !EqualRect(prcTarget, &rcImg)))
     {
         return VFW_E_INVALIDMEDIATYPE;
     }
-    if (!IsRectEmpty(prcTarget) && !EqualRect(prcTarget, &rcImg))
-    {
-        return VFW_E_INVALIDMEDIATYPE;
-    }
-
-    // Check the palette table.
-    /*
-	if (pBmiOut->biClrUsed != pBmiIn->biClrUsed)
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-    DWORD cbPalette = pBmiOut->biClrUsed * sizeof(RGBQUAD);
-    if (mtOut->cbFormat < sizeof(VIDEOINFOHEADER) + cbPalette)
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-    if (0 != memcmp(pBmiOut + 1, pBmiIn + 1, cbPalette))
-    {
-        return VFW_E_TYPE_NOT_ACCEPTED;
-    }
-	*/
 
     // Everything is good.
     return S_OK;
@@ -180,52 +122,42 @@ HRESULT FrameTransformFilter::DecideBufferSize(
     ASSERT(mt.formattype == FORMAT_VideoInfo);
     BITMAPINFOHEADER *pbmi = HEADER(mt.pbFormat);
     pProp->cbBuffer = DIBSIZE(*pbmi) * 2; 
-    if (pProp->cbAlign == 0)
-    {
-        pProp->cbAlign = 1;
-    }
-    if (pProp->cBuffers == 0)
-    {
-        pProp->cBuffers = 1;
-    }
+    if (pProp->cbAlign == 0) pProp->cbAlign = 1;
+    if (pProp->cBuffers == 0) pProp->cBuffers = 1;
+	
     // Release the format block.
     FreeMediaType(mt);
 
     // Set allocator properties.
     ALLOCATOR_PROPERTIES Actual;
     hr = pAlloc->SetProperties(pProp, &Actual);
-    if (FAILED(hr)) 
-    {
-        return hr;
-    }
+    if (FAILED(hr)) return hr;
+	
     // Even when it succeeds, check the actual result.
-    if (pProp->cbBuffer > Actual.cbBuffer) 
-    {
-        return E_FAIL;
-    }
+    if (pProp->cbBuffer > Actual.cbBuffer) return E_FAIL;
+	
     return S_OK;
 }
 
 HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDest)
 {
-    // Get pointers to the underlying buffers.
     BYTE *pBufferIn, *pBufferOut;
-    HRESULT hr = pSource->GetPointer(&pBufferIn);
-    if (FAILED(hr))
-    {
-        return hr;
-    }
-    hr = pDest->GetPointer(&pBufferOut);
-    if (FAILED(hr))
-    {
-        return hr;
-    }
+    HRESULT hr;
+	
+    // Get pointers to the underlying buffers.
+    if (FAILED(hr = pSource->GetPointer(&pBufferIn))) return hr;
+    if (FAILED(hr = pDest->GetPointer(&pBufferOut))) return hr;
+	
     // Process the data.
-	//DWORD cbDest = EncodeFrame(pBufferIn, pBufferOut);
-	memcpy(pBufferOut, pBufferIn, pSource->GetSize());
-    //KASSERT((long)cbDest <= pDest->GetSize());
+	//memcpy(pBufferOut, pBufferIn, pSource->GetSize());
+	int n = 0;
+	while (n < pSource->GetSize())
+	{
+		pBufferOut[n] = 255 - pBufferIn[n]; ++n;
+		pBufferOut[n] = 255 - pBufferIn[n]; ++n;
+		pBufferOut[n] = 255 - pBufferIn[n]; ++n;		
+	}
 
-    //pDest->SetActualDataLength(cbDest);
     pDest->SetActualDataLength(pSource->GetActualDataLength());
     pDest->SetSyncPoint(TRUE);
     return S_OK;
