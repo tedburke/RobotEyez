@@ -1,6 +1,6 @@
 //
 // FrameTransformFilter.h - FrameTransformFilter header file
-// Written by Ted Burke - last modified 23-11-2011
+// Written by Ted Burke - last modified 27-11-2011
 //
 
 #ifndef FRAMETRANSFORMFILTER_H
@@ -8,6 +8,9 @@
 
 #include <dshow.h>
 #include <streams.h>
+
+#define FRAME_WIDTH 640
+#define FRAME_HEIGHT 480
 
 // I generated the following GUID for this filter using the
 // online GUID generator at http://www.guidgen.com/
@@ -25,6 +28,7 @@ public:
 	// Provide a function to allow a PGM file copy of the
 	// next frame to be requested
 	void saveNextFrameToPGMFile(char *filename);
+	void setCommand(char *command);
 	int filesSaved();
 	
 	// Methods required for filters derived from CTransformFilter
@@ -35,10 +39,11 @@ public:
 	HRESULT Transform(IMediaSample *pSource, IMediaSample *pDest);
 	
 private:
-	// Flag to save next frame to PGM file
-	char filename[200];
-	int save_to_PGM;
-	int files_saved;
+	int save_to_PGM;	// flag to request saving next frame to PGM file
+	char filename[200];	// filename to use when saving a capture frame to file
+	int files_saved;	// counter for number of frames saved to PGM files
+	int run_command;	// flag to execute program after each file capture
+	char command[200];	// command to run after each image file is saved
 };
 
 #endif // FRAMETRANSFORMFILTER_H

@@ -1,8 +1,8 @@
 //
 // FrameTransformFilter.cpp - FrameTransformFilter class
-// Written by Ted Burke - last modified 23-11-2011
+// Written by Ted Burke - last modified 27-11-2011
 //
-// Most of the code below is copied from the MSDN
+// Some of the code below is adapted from the MSDN
 // "Writing Transform Filters" tutorial.
 // http://msdn.microsoft.com/en-us/library/windows/desktop/dd391015(v=vs.85).aspx
 //
@@ -10,13 +10,13 @@
 // DirectShow header files
 #include <dshow.h>
 #include <streams.h>
-#include <Aviriff.h>
-
 #include <initguid.h>
+
 #include "FrameTransformFilter.h"
 
-#define FRAME_WIDTH 640
-#define FRAME_HEIGHT 480
+// Used for various strings - filenames, command line args, etc
+// (also defined in RobotEyez.cpp)
+#define STRING_LENGTH 200
 
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
@@ -24,21 +24,15 @@ FrameTransformFilter::FrameTransformFilter()
 	// Initialize any private variables here
 	save_to_PGM = 0;
 	files_saved = 0;
+	run_command = 0;
 }
 
-void FrameTransformFilter::saveNextFrameToPGMFile(char *output_filename)
-{
-	// Remember filename and set flag to request dump
-	// of next frame to PGM file
-	strncpy(filename, output_filename, 200);
-	save_to_PGM = 1;
-}
-
-int FrameTransformFilter::filesSaved()
-{
-	return files_saved;
-}
-
+//
+// This function is used during DirectShow graph building
+// to limit the type of input connection that the filter
+// will accept.
+// Here, the connection must be 640x480 24-bit RGB.
+//
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 {
     VIDEOINFOHEADER *pVih = 
@@ -60,6 +54,11 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
     return S_OK;
 }
 
+//
+// This function is called to find out what this filters
+// preferred output format is. Here, the output type is
+// specified at 640x480 24-bit RGB.
+//
 HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType)
 {
 	HRESULT hr;
@@ -85,6 +84,11 @@ HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType
 	return S_OK;
 }
 
+//
+// This function is used to verify that the proposed
+// connections into and out of the filter are acceptable
+// before the capture graph is run.
+//
 HRESULT FrameTransformFilter::CheckTransform(
     const CMediaType *mtIn, const CMediaType *mtOut)
 {
@@ -124,6 +128,11 @@ HRESULT FrameTransformFilter::CheckTransform(
     return S_OK;
 }
 
+//
+// Can't remember exactly what this function does.
+// This is probably modified very little (if at all)
+// from the original one in the MSDN tutorial.
+//
 HRESULT FrameTransformFilter::DecideBufferSize(
     IMemAllocator *pAlloc, ALLOCATOR_PROPERTIES *pProp)
 {
@@ -154,6 +163,10 @@ HRESULT FrameTransformFilter::DecideBufferSize(
     return S_OK;
 }
 
+//
+// This function is called to process the image data
+// each time a new frame is received
+//
 HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDest)
 {
     BYTE *pBufferIn, *pBufferOut;
@@ -182,8 +195,8 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
 		if (f = fopen(filename, "w"))
 		{
 			// Write current frame to PGM file
-			fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n%d\n",
-					FRAME_HEIGHT, FRAME_WIDTH);
+			fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n",
+					FRAME_WIDTH, FRAME_HEIGHT);
 			n = 0;
 			for (int y=0 ; y<FRAME_HEIGHT ; ++y)
 			{
@@ -199,6 +212,10 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
 			// Increment frame counter and reset flag
 			files_saved++;
 			save_to_PGM = 0;
+			
+			// Execute frame processing program if user has
+			// specified one
+			if (run_command) system(command);
 		}
 		else
 		{
@@ -209,4 +226,37 @@ HRESULT FrameTransformFilter::Transform(IMediaSample *pSource, IMediaSample *pDe
     pDest->SetActualDataLength(pSource->GetActualDataLength());
     pDest->SetSyncPoint(TRUE);
     return S_OK;
+}
+
+//
+// This function is used to request that the next frame
+// captured be saved to a PGM file
+//
+void FrameTransformFilter::saveNextFrameToPGMFile(char *output_filename)
+{
+	// Remember filename and set flag to request dump
+	// of next frame to PGM file
+	strncpy(filename, output_filename, STRING_LENGTH);
+	save_to_PGM = 1;
+}
+
+//
+// This function returns the number of image files
+// that have been saved since the filter was created
+//
+int FrameTransformFilter::filesSaved()
+{
+	return files_saved;
+}
+
+//
+// This function is used to designate an external program
+// which will be launched each time an image file is saved
+//
+void FrameTransformFilter::setCommand(char *command_string)
+{
+	// Set flag to run command after each file is saved
+	// and remember the command to run
+	strncpy(command, command_string, STRING_LENGTH);
+	run_command = 1;
 }

@@ -12,6 +12,10 @@
 
 #include "FrameTransformFilter.h"
 
+// Used for various strings - filenames, command line args, etc
+// (also defined in FrameTransformFilter.cpp)
+#define STRING_LENGTH 200
+
 // DirectShow objects
 HRESULT hr;
 ICreateDevEnum *pDevEnum = NULL;
@@ -51,22 +55,24 @@ int main(int argc, char **argv)
 	// Capture settings
 	int delay = 2000;
 	int period = 1000;
-	int frames = 10;
+	int frames = 1;
 	int number_files = 0;
 	int list_devices = 0;
 	int device_number = 1;
-	char device_name[100];
-	char filename[200];
+	char device_name[STRING_LENGTH];
+	char filename[STRING_LENGTH];
+	int run_command = 0;
+	char command[STRING_LENGTH];
 	
 	// Other variables
-	char char_buffer[100];
+	char char_buffer[STRING_LENGTH];
 
 	// Default device name and output filename
 	strcpy(device_name, "");
 	
 	// Information message
 	fprintf(stderr, "\nRobotEyez.exe - http://batchloaf.wordpress.com\n");
-	fprintf(stderr, "Written by Ted Burke - this version 23-11-2011\n");
+	fprintf(stderr, "Written by Ted Burke - this version 27-11-2011\n");
 	fprintf(stderr, "Copyright Ted Burke, 2011, All rights reserved.\n\n");
 	
 	// Parse command line arguments. Available options:
@@ -152,6 +158,19 @@ int main(int argc, char **argv)
 				device_number = 0;
 			}
 			else exit_message("Error: invalid device name", 1);
+		}
+		else if (strcmp(argv[n], "/command") == 0)
+		{
+			// Set command to specified string
+			if (++n < argc)
+			{
+				// Copy device name into char buffer
+				strncpy(command, argv[n], STRING_LENGTH);
+				
+				// Remember to choose by name rather than number
+				run_command = 1;
+			}
+			else exit_message("Error: invalid command specified", 1);
 		}
 		else
 		{
@@ -312,9 +331,10 @@ int main(int argc, char **argv)
 	if (!pFrameTransformFilter)
 		exit_message("Could not create frame transform filter", 1);
 	// NB Object will be automatically deleted when pTransform is released
-	hr = pFrameTransformFilter->QueryInterface(IID_IBaseFilter, reinterpret_cast<void**>(&pTransform));
+	hr = pFrameTransformFilter->QueryInterface(
+			IID_IBaseFilter, reinterpret_cast<void**>(&pTransform));
 	if (hr != S_OK)
-		exit_message("Could not get IBaseFilter interface to frame transform filter", 1);
+		exit_message("Could not get IBaseFilter interface of transform filter", 1);
 	
 	// Add transform filter to graph
 	hr = pGraph->AddFilter(pTransform, L"FrameTransform");
@@ -359,10 +379,13 @@ int main(int argc, char **argv)
 	// See the following link for more info:
 	// http://msdn.microsoft.com/en-us/library/windows/desktop/dd407349%28v=vs.85%29.aspx
 	//
-	MSG msg;	
-	DWORD start_time = GetTickCount(); // Remember start time
+	MSG msg;
+	DWORD start_time = GetTickCount();
 	DWORD last_frame_time = start_time;
 	DWORD current_time = start_time;
+	if (run_command) pFrameTransformFilter->setCommand(command);
+	
+	// Message loop
 	while(1)
 	{
 		// Using PeekMessage instead of GetMessage so that
