@@ -205,12 +205,12 @@ HRESULT FrameTransformFilter::Transform(
 			fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n",
 			FRAME_WIDTH, FRAME_HEIGHT);
 			n = 0;
-			for (int y=0 ; y<FRAME_HEIGHT ; ++y)
+			for (int y=FRAME_HEIGHT-1 ; y>=0 ; --y)
 			{
 				for (int x=0 ; x<FRAME_WIDTH ; ++x)
 				{
+					n = 3*(y*FRAME_WIDTH + x);
 					fprintf(f, "%d ", pBufferOut[n]);
-					n += 3;
 				}
 				fprintf(f, "\n");
 			}
