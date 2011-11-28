@@ -199,6 +199,20 @@ HRESULT FrameTransformFilter::Transform(
 	FILE *f;
 	if (save_to_PGM)
 	{
+		// Check if file exists already
+		if (f = fopen(filename, "r"))
+		{
+			// File can be opened for reading, so it exists
+			fclose(f);
+			
+			// Nasty hack to check if file is currently open
+			// in another program. There had been a problem
+			// without this because another program could be
+			// in the middle of reading the file.
+			while (rename(filename, filename) != 0);
+		}
+
+		// Now open the file for writing
 		if (f = fopen(filename, "w"))
 		{
 			// Write current frame to PGM file
