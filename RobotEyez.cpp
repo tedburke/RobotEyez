@@ -69,6 +69,7 @@ int main(int argc, char **argv)
 	int device_number = 1;
 	char device_name[STRING_LENGTH];
 	char filename[STRING_LENGTH];
+	char filetype_string[4] = "pgm";
 	int run_command = 0;
 	char command[STRING_LENGTH];
 	int show_renderer = 0;
@@ -95,6 +96,7 @@ int main(int argc, char **argv)
 	//		/command COMMAND_TO_RUN
 	//		/devlist
 	//		/preview
+	//		/bmp
 	//
 	int n = 1;
 	while (n < argc)
@@ -184,6 +186,11 @@ int main(int argc, char **argv)
 				run_command = 1;
 			}
 			else exit_message("Error: invalid command specified", 1);
+		}
+		else if (strcmp(argv[n], "/bmp") == 0)
+		{
+			// Set flag to list devices rather than capture image
+			strcpy(filetype_string, "bmp");
 		}
 		else
 		{
@@ -443,14 +450,15 @@ int main(int argc, char **argv)
 			// Save next frame to PGM file
 			if (number_files)
 			{
-				sprintf(filename, "frame%04d.pgm",
-					pFrameTransformFilter->filesSaved() + 1);
+				sprintf(filename, "frame%04d.%s",
+					pFrameTransformFilter->filesSaved() + 1,
+					filetype_string);
 			}
 			else
 			{
-				sprintf(filename, "frame.pgm");
+				sprintf(filename, "frame.%s", filetype_string);
 			}
-			pFrameTransformFilter->saveNextFrameToPGMFile(filename);
+			pFrameTransformFilter->saveNextFrameToFile(filename);
 			last_frame_time = current_time;
 		}
 		else

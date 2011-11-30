@@ -31,7 +31,7 @@ public:
 	
 	// Provide a function to allow a PGM file copy of the
 	// next frame to be requested
-	void saveNextFrameToPGMFile(char *filename);
+	void saveNextFrameToFile(char *filename);
 	void setCommand(char *command);
 	int filesSaved();
 	
@@ -43,7 +43,7 @@ public:
 	HRESULT Transform(IMediaSample *pSource, IMediaSample *pDest);
 	
 private:
-	int save_to_PGM;	// flag to request saving next frame to PGM file
+	int save_frame_to_file;	// flag to request saving next frame to PGM file
 	char filename[200];	// filename to use when saving a capture frame to file
 	int files_saved;	// counter for number of frames saved to PGM files
 	int run_command;	// flag to execute program after each file capture

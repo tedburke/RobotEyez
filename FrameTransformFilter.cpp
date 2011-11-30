@@ -1,6 +1,6 @@
 //
 // FrameTransformFilter.cpp - FrameTransformFilter class
-// Written by Ted Burke - last modified 27-11-2011
+// Written by Ted Burke - last modified 30-11-2011
 //
 // Copyright Ted Burke, 2011, All rights reserved.
 //
@@ -22,13 +22,17 @@
 // (also defined in RobotEyez.cpp)
 #define STRING_LENGTH 200
 
+// Function prototype
+int write_pgm_file(char *, unsigned char *, int, int);
+int write_bmp_file(char *, unsigned char *, int, int);
+
 char text_buffer[2*STRING_LENGTH];
 
 FrameTransformFilter::FrameTransformFilter()
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 {
 	// Initialize any private variables here
-	save_to_PGM = 0;
+	save_frame_to_file = 0;
 	files_saved = 0;
 	run_command = 0;
 }
@@ -182,24 +186,18 @@ HRESULT FrameTransformFilter::Transform(
 	// Get pointers to the underlying buffers.
 	if (FAILED(hr = pSource->GetPointer(&pBufferIn))) return hr;
 	if (FAILED(hr = pDest->GetPointer(&pBufferOut))) return hr;
+
+	// Just copy data from input buffer to output buffer
+	memcpy(pBufferOut, pBufferIn, pSource->GetSize());
 	
-	// Process the data.
-	//memcpy(pBufferOut, pBufferIn, pSource->GetSize());
-	int val = 0, n = 0, N = pSource->GetSize();
-	while (n < N)
-	{
-		// Modify current pixel
-		val = (pBufferIn[n] + pBufferIn[n+1] + pBufferIn[n+2]) / 3;
-		pBufferOut[n++] = val;
-		pBufferOut[n++] = val;
-		pBufferOut[n++] = val;
-	}
+	pDest->SetActualDataLength(pSource->GetActualDataLength());
+	pDest->SetSyncPoint(TRUE);
 	
-	// Output greyscale image to PGM file if flag is set
-	FILE *f;
-	if (save_to_PGM)
-	{
+	// Output image to PGM or BMP file if flag is set
+	if (save_frame_to_file)
+	{		
 		// Check if file exists already
+		FILE *f;
 		if (f = fopen(filename, "r"))
 		{
 			// File can be opened for reading, so it exists
@@ -211,42 +209,30 @@ HRESULT FrameTransformFilter::Transform(
 			// in the middle of reading the file.
 			while (rename(filename, filename) != 0);
 		}
-
-		// Now open the file for writing
-		if (f = fopen(filename, "w"))
+		
+		if (strcmp(filename+(strlen(filename)-4), ".pgm") == 0)
 		{
 			// Write current frame to PGM file
-			fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n",
-			FRAME_WIDTH, FRAME_HEIGHT);
-			n = 0;
-			for (int y=FRAME_HEIGHT-1 ; y>=0 ; --y)
-			{
-				for (int x=0 ; x<FRAME_WIDTH ; ++x)
-				{
-					n = 3*(y*FRAME_WIDTH + x);
-					fprintf(f, "%d ", pBufferOut[n]);
-				}
-				fprintf(f, "\n");
-			}
-			fclose(f);
-			
-			// Increment frame counter and reset flag
-			files_saved++;
-			save_to_PGM = 0;
-			
-			// Execute frame processing program if user has
-			// specified one
-			sprintf(text_buffer, "%s %s", command, filename);
-			if (run_command) system(text_buffer);
+			write_pgm_file(filename, pBufferOut,
+							FRAME_WIDTH, FRAME_HEIGHT);
 		}
-		else
+		else if (strcmp(filename+(strlen(filename)-4), ".bmp") == 0)
 		{
-			fprintf(stderr, "Error opening file %s\n", filename);
+			// Write current frame to BMP file
+			write_bmp_file(filename, pBufferIn,
+							FRAME_WIDTH, FRAME_HEIGHT);
 		}
+		
+		// Increment frame counter and reset flag
+		files_saved++;
+		save_frame_to_file = 0;
+		
+		// Execute frame processing program if user has
+		// specified one
+		sprintf(text_buffer, "%s %s", command, filename);
+		if (run_command) system(text_buffer);
 	}
-
-	pDest->SetActualDataLength(pSource->GetActualDataLength());
-	pDest->SetSyncPoint(TRUE);
+	
 	return S_OK;
 }
 
@@ -254,12 +240,12 @@ HRESULT FrameTransformFilter::Transform(
 // This function is used to request that the next frame
 // captured be saved to a PGM file
 //
-void FrameTransformFilter::saveNextFrameToPGMFile(char *output_filename)
+void FrameTransformFilter::saveNextFrameToFile(char *output_filename)
 {
 	// Remember filename and set flag to request dump
 	// of next frame to PGM file
 	strncpy(filename, output_filename, STRING_LENGTH);
-	save_to_PGM = 1;
+	save_frame_to_file = 1;
 }
 
 //
@@ -281,4 +267,102 @@ void FrameTransformFilter::setCommand(char *command_string)
 	// and remember the command to run
 	strncpy(command, command_string, STRING_LENGTH);
 	run_command = 1;
+}
+
+int write_pgm_file(char *filename, unsigned char *pBuf, int w, int h)
+{
+	int x, y, val, n;
+	
+	// Process the data.
+	/*
+	int val = 0, n = 0, N = pSource->GetSize();
+	while (n < N)
+	{
+		// Modify current pixel
+		val = (pBufferIn[n] + pBufferIn[n+1] + pBufferIn[n+2]) / 3;
+		pBufferOut[n++] = val;
+		pBufferOut[n++] = val;
+		pBufferOut[n++] = val;
+	}
+	*/
+
+	FILE *f;
+	if (f = fopen(filename, "w"))
+	{
+		// Write current frame to PGM file
+		fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n",
+				FRAME_WIDTH, FRAME_HEIGHT);
+		for (int y=FRAME_HEIGHT-1 ; y>=0 ; --y)
+		{
+			for (int x=0 ; x<FRAME_WIDTH ; ++x)
+			{
+				n = 3*(y*FRAME_WIDTH + x);
+				val = (pBuf[n] + pBuf[n+1] + pBuf[n+2]) / 3;
+				fprintf(f, "%d ", val);
+			}
+			fprintf(f, "\n");
+		}
+		fclose(f);
+	}
+	
+	return 0;
+}
+
+int write_bmp_file(char *filename, unsigned char *pBuf, int w, int h)
+{
+	int x, y;
+	
+	// Bitmap structures to be written to file
+	BITMAPFILEHEADER bfh;
+	BITMAPINFOHEADER bih;
+	
+	// Fill BITMAPFILEHEADER structure
+	memcpy((char *)&bfh.bfType, "BM", 2);
+	bfh.bfSize = sizeof(bfh) + sizeof(bih) + 3*h*w;
+	bfh.bfReserved1 = 0;
+	bfh.bfReserved2 = 0;
+	bfh.bfOffBits = sizeof(bfh) + sizeof(bih);
+	
+	// Fill BITMAPINFOHEADER structure
+	bih.biSize = sizeof(bih);
+	bih.biWidth = w;
+	bih.biHeight = h;
+	bih.biPlanes = 1;
+	bih.biBitCount = 24;
+	bih.biCompression = BI_RGB; // uncompressed 24-bit RGB
+	bih.biSizeImage = 0; // can be zero for BI_RGB bitmaps
+	bih.biXPelsPerMeter = 3780; // 96dpi equivalent
+	bih.biYPelsPerMeter = 3780;
+	bih.biClrUsed = 0;
+	bih.biClrImportant = 0;
+	
+	// Open bitmap file (binary mode)
+	FILE *f;
+	f = fopen(filename, "wb");
+	if (f == NULL) return 1;
+	
+	// Write bitmap file header
+	fwrite(&bfh, 1, sizeof(bfh), f);
+	fwrite(&bih, 1, sizeof(bih), f);
+	
+	// Write bitmap pixel data starting with the
+	// bottom line of pixels, left hand side
+	fwrite(pBuf, 1, 3*w*h, f);
+	/*
+	for (y=0 ; y<h ; ++y)
+	{
+		for (x=0 ; x<w ; ++x)
+		{
+			// Write pixel components in BGR order
+			fputc(pBuf[3*(y*w+x)+2], f);
+			fputc(pBuf[3*(y*w+x)+1], f);
+			fputc(pBuf[3*(y*w+x)], f);
+		}
+	}
+	*/
+	
+	// Close bitmap file
+	fclose(f);
+	
+	return 0;
 }
