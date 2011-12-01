@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 	
 	// Information message
 	fprintf(stderr, "\nRobotEyez.exe - http://batchloaf.wordpress.com\n");
-	fprintf(stderr, "Written by Ted Burke - this version 27-11-2011\n");
+	fprintf(stderr, "Written by Ted Burke - this version 30-11-2011\n");
 	fprintf(stderr, "Copyright Ted Burke, 2011, All rights reserved.\n\n");
 	
 	// Parse command line arguments. Available options:
