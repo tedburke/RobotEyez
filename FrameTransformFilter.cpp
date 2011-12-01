@@ -180,6 +180,7 @@ HRESULT FrameTransformFilter::DecideBufferSize(
 HRESULT FrameTransformFilter::Transform(
 	IMediaSample *pSource, IMediaSample *pDest)
 {
+	FILE *f;
 	BYTE *pBufferIn, *pBufferOut;
 	HRESULT hr;
 	
@@ -197,7 +198,6 @@ HRESULT FrameTransformFilter::Transform(
 	if (save_frame_to_file)
 	{		
 		// Check if file exists already
-		FILE *f;
 		if (f = fopen(filename, "r"))
 		{
 			// File can be opened for reading, so it exists
@@ -209,7 +209,9 @@ HRESULT FrameTransformFilter::Transform(
 			// in the middle of reading the file.
 			while (rename(filename, filename) != 0);
 		}
-		
+			
+		fprintf(stderr, "Saving frame as %s\n", filename);
+	
 		if (strcmp(filename+(strlen(filename)-4), ".pgm") == 0)
 		{
 			// Write current frame to PGM file
