@@ -1,6 +1,6 @@
 //
 // RobotEyez.cpp - A simple machine vision program
-// Written by Ted Burke - last modified 23-11-2011
+// Written by Ted Burke - last modified 30-11-2011
 //
 // Copyright Ted Burke, 2011, All rights reserved.
 //

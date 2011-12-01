@@ -1,6 +1,6 @@
 //
 // FrameTransformFilter.h - FrameTransformFilter header file
-// Written by Ted Burke - last modified 27-11-2011
+// Written by Ted Burke - last modified 30-11-2011
 //
 // Copyright Ted Burke, 2011, All rights reserved.
 //
