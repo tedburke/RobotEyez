@@ -1,8 +1,8 @@
 //
 // RobotEyez.cpp - A simple machine vision program
-// Written by Ted Burke - last modified 30-11-2011
+// Written by Ted Burke - last modified 7-3-2012
 //
-// Copyright Ted Burke, 2011, All rights reserved.
+// Copyright Ted Burke, 2011-2012, All rights reserved.
 //
 // Website: http://batchloaf.wordpress.com
 //
@@ -62,7 +62,7 @@ void exit_message(const char* error_message, int error)
 
 int main(int argc, char **argv)
 {
-	// Capture settings
+	// Default capture settings
 	int width = 640;
 	int height = 480;
 	int delay = 2000;
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
 	
 	// Information message
 	fprintf(stderr, "\nRobotEyez.exe - http://batchloaf.wordpress.com\n");
-	fprintf(stderr, "Written by Ted Burke - this version 30-11-2011\n");
+	fprintf(stderr, "Written by Ted Burke - this version 7-3-2012\n");
 	fprintf(stderr, "Copyright Ted Burke, 2011, All rights reserved.\n\n");
 	
 	// Parse command line arguments. Available options:
@@ -396,9 +396,8 @@ int main(int argc, char **argv)
 	hr = pGraph->AddFilter(pNullRenderer, L"NullRender");
 	if (hr != S_OK)
 		exit_message("Could not add Null Renderer to filter graph", 1);
-
 	
-	// Set resolution
+	// Try to set video resolution
 	hr = pBuilder->FindInterface(
 				&PIN_CATEGORY_CAPTURE,
 				&MEDIATYPE_Video,
@@ -414,20 +413,14 @@ int main(int argc, char **argv)
 	}
 	else
 	{
+		// Successfully got the IAMStreamConfig interface
+		// Get, modify and set video format
 		AM_MEDIA_TYPE *pmt = 0;
-
 		hr = pStreamConfig->GetFormat(&pmt);
-
 		if (hr != S_OK)	exit_message("Error getting capture filter format", 1);
-
-		//if (SubType != GUID_NULL) pmt->subtype = SubType;
-
 		if (pmt->formattype != FORMAT_VideoInfo)
 			exit_message("AM_MEDIA_TYPE format type is not FORMAT_VideoInfo", 1);
-
 		VIDEOINFOHEADER *pvi = (VIDEOINFOHEADER *)pmt->pbFormat;
-
-		//if (FPS != -1.0) pvi->AvgTimePerFrame = (LONGLONG)(10000000/FPS);
 		pvi->bmiHeader.biWidth = width;
 		pvi->bmiHeader.biHeight = height;
 		hr = pStreamConfig->SetFormat(pmt);
@@ -437,22 +430,12 @@ int main(int argc, char **argv)
 	// Connect up the filter graph's preview stream
 	if (show_renderer)
 	{
-		/*
-		hr = pBuilder->RenderStream(
-				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
-				pCap, pTransform, NULL);
-		*/
 		hr = pBuilder->RenderStream(
 				&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
 				pCap, pTransform, NULL);
 	}
 	else
 	{
-		/*
-		hr = pBuilder->RenderStream(
-				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
-				pCap, pTransform, pNullRenderer);
-		*/
 		hr = pBuilder->RenderStream(
 				&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
 				pCap, pTransform, pNullRenderer);

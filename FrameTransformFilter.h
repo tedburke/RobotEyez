@@ -1,8 +1,8 @@
 //
 // FrameTransformFilter.h - FrameTransformFilter header file
-// Written by Ted Burke - last modified 30-11-2011
+// Written by Ted Burke - last modified 7-3-2012
 //
-// Copyright Ted Burke, 2011, All rights reserved.
+// Copyright Ted Burke, 2011-2012, All rights reserved.
 //
 // Website: http://batchloaf.wordpress.com
 //
@@ -12,9 +12,6 @@
 
 #include <dshow.h>
 #include <streams.h>
-
-//#define FRAME_WIDTH 640
-//#define FRAME_HEIGHT 480
 
 // I generated the following GUID for this filter using the
 // online GUID generator at http://www.guidgen.com/

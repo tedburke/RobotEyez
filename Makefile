@@ -1,8 +1,8 @@
 #
 # RobotEyez makefile
-# Written by Ted Burke - last modified 30-11-2011
+# Written by Ted Burke - last modified 7-3-2012
 #
-# Copyright Ted Burke, 2011, All rights reserved.
+# Copyright Ted Burke, 2011-2012, All rights reserved.
 #
 # Website: http://batchloaf.wordpress.com
 #
