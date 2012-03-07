@@ -34,6 +34,7 @@ IBaseFilter *pCap = NULL;
 IBaseFilter *pTransform = NULL;
 IBaseFilter *pNullRenderer = NULL;
 IMediaControl *pMediaControl = NULL;
+IAMStreamConfig *pStreamConfig = NULL;
 
 void exit_message(const char* error_message, int error)
 {
@@ -43,6 +44,7 @@ void exit_message(const char* error_message, int error)
 	
 	// Clean up DirectShow / COM stuff
 	if (pMediaControl != NULL) pMediaControl->Release();
+	if (pStreamConfig != NULL) pStreamConfig->Release();
 	if (pNullRenderer != NULL) pNullRenderer->Release();
 	if (pTransform != NULL) pTransform->Release();
 	if (pCap != NULL) pCap->Release();
@@ -61,6 +63,8 @@ void exit_message(const char* error_message, int error)
 int main(int argc, char **argv)
 {
 	// Capture settings
+	int width = 640;
+	int height = 480;
 	int delay = 2000;
 	int period = 1000;
 	int frames = 1;
@@ -87,6 +91,8 @@ int main(int argc, char **argv)
 	
 	// Parse command line arguments. Available options:
 	//
+	//		/width FRAME_WIDTH_IN_PIXELS
+	//		/height FRAME_HEIGHT_IN_PIXELS
 	//		/delay DELAY_IN_MILLISECONDS
 	//		/period PERIOD_IN_MILLISECONDS
 	//		/frames NUMBER_OF_FRAMES
@@ -111,6 +117,24 @@ int main(int argc, char **argv)
 		{
 			// Set flag to list devices rather than capture image
 			show_renderer = 1;
+		}
+		else if (strcmp(argv[n], "/width") == 0)
+		{
+			// Set frame width to specified value
+			if (++n < argc) width = atoi(argv[n]);
+			else exit_message("Error: invalid width specified", 1);
+			
+			if (delay <= 0)
+				exit_message("Error: invalid width specified", 1);
+		}
+		else if (strcmp(argv[n], "/height") == 0)
+		{
+			// Set frame height to specified value
+			if (++n < argc) height = atoi(argv[n]);
+			else exit_message("Error: invalid height specified", 1);
+			
+			if (delay <= 0)
+				exit_message("Error: invalid height specified", 1);
 		}
 		else if (strcmp(argv[n], "/delay") == 0)
 		{
@@ -347,7 +371,7 @@ int main(int argc, char **argv)
 
 	// Create frame transform filter
 	FrameTransformFilter *pFrameTransformFilter = NULL;
-	pFrameTransformFilter = new FrameTransformFilter();
+	pFrameTransformFilter = new FrameTransformFilter(width, height);
 	if (!pFrameTransformFilter)
 		exit_message("Could not create frame transform filter", 1);
 	// NB Object will be automatically deleted when pTransform is released
@@ -373,17 +397,64 @@ int main(int argc, char **argv)
 	if (hr != S_OK)
 		exit_message("Could not add Null Renderer to filter graph", 1);
 
-		// Connect up the filter graph's preview stream
+	
+	// Set resolution
+	hr = pBuilder->FindInterface(
+				&PIN_CATEGORY_CAPTURE,
+				&MEDIATYPE_Video,
+				pCap,
+				IID_IAMStreamConfig,
+				(void**)&pStreamConfig);
+	if (hr != S_OK)
+	{
+		fprintf(stderr, "Could not get IAMStreamConfig interface: ");
+		if (hr == E_FAIL) fprintf(stderr, "E_FAIL\n");
+		else if (hr == E_NOINTERFACE) fprintf(stderr, "E_NOINTERFACE\n");
+		else if (hr == E_POINTER) fprintf(stderr, "E_POINTER\n");
+	}
+	else
+	{
+		AM_MEDIA_TYPE *pmt = 0;
+
+		hr = pStreamConfig->GetFormat(&pmt);
+
+		if (hr != S_OK)	exit_message("Error getting capture filter format", 1);
+
+		//if (SubType != GUID_NULL) pmt->subtype = SubType;
+
+		if (pmt->formattype != FORMAT_VideoInfo)
+			exit_message("AM_MEDIA_TYPE format type is not FORMAT_VideoInfo", 1);
+
+		VIDEOINFOHEADER *pvi = (VIDEOINFOHEADER *)pmt->pbFormat;
+
+		//if (FPS != -1.0) pvi->AvgTimePerFrame = (LONGLONG)(10000000/FPS);
+		pvi->bmiHeader.biWidth = width;
+		pvi->bmiHeader.biHeight = height;
+		hr = pStreamConfig->SetFormat(pmt);
+		DeleteMediaType(pmt);
+	}
+
+	// Connect up the filter graph's preview stream
 	if (show_renderer)
 	{
+		/*
 		hr = pBuilder->RenderStream(
 				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
+				pCap, pTransform, NULL);
+		*/
+		hr = pBuilder->RenderStream(
+				&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
 				pCap, pTransform, NULL);
 	}
 	else
 	{
+		/*
 		hr = pBuilder->RenderStream(
 				&PIN_CATEGORY_PREVIEW, &MEDIATYPE_Video,
+				pCap, pTransform, pNullRenderer);
+		*/
+		hr = pBuilder->RenderStream(
+				&PIN_CATEGORY_CAPTURE, &MEDIATYPE_Video,
 				pCap, pTransform, pNullRenderer);
 	}
 	if (hr != S_OK && hr != VFW_S_NOPREVIEWPIN)

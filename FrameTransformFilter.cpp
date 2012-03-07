@@ -28,10 +28,12 @@ int write_bmp_file(char *, unsigned char *, int, int);
 
 char text_buffer[2*STRING_LENGTH];
 
-FrameTransformFilter::FrameTransformFilter()
+FrameTransformFilter::FrameTransformFilter(int w, int h)
   : CTransformFilter(NAME("My Frame Transforming Filter"), 0, CLSID_FrameTransformFilter)
 {
 	// Initialize any private variables here
+	width = w;
+	height = h;
 	save_frame_to_file = 0;
 	files_saved = 0;
 	run_command = 0;
@@ -41,7 +43,9 @@ FrameTransformFilter::FrameTransformFilter()
 // This function is used during DirectShow graph building
 // to limit the type of input connection that the filter
 // will accept.
-// Here, the connection must be 640x480 24-bit RGB.
+// Here, the connection must be 24-bit RGB at the dimensions
+// currently stored in the filter's width and height member
+// variables (as passed as arguments to the constructor).
 //
 HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 {
@@ -53,8 +57,8 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 		(mtIn->formattype != FORMAT_VideoInfo) || 
 		(mtIn->cbFormat < sizeof(VIDEOINFOHEADER)) ||
 		(pVih->bmiHeader.biPlanes != 1) ||
-		(pVih->bmiHeader.biWidth != FRAME_WIDTH) ||
-		(pVih->bmiHeader.biHeight != FRAME_HEIGHT) ||
+		(pVih->bmiHeader.biWidth != width) ||
+		(pVih->bmiHeader.biHeight != height) ||
 		(pVih->bmiHeader.biBitCount != 24) ||
 		(pVih->bmiHeader.biCompression != BI_RGB))
 	{
@@ -67,7 +71,9 @@ HRESULT FrameTransformFilter::CheckInputType(const CMediaType *mtIn)
 //
 // This function is called to find out what this filters
 // preferred output format is. Here, the output type is
-// specified at 640x480 24-bit RGB.
+// specified at 24-bit RGB at the dimensions stored in
+// the width and height member variables (passed as
+// arguments to the constructor).
 //
 HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType)
 {
@@ -88,8 +94,8 @@ HRESULT FrameTransformFilter::GetMediaType(int iPosition, CMediaType *pMediaType
 	pVih->bmiHeader.biPlanes = 1;
 	pVih->bmiHeader.biBitCount = 24;
 	pVih->bmiHeader.biCompression = BI_RGB;
-	pVih->bmiHeader.biWidth = FRAME_WIDTH;
-	pVih->bmiHeader.biHeight = FRAME_HEIGHT;
+	pVih->bmiHeader.biWidth = width;
+	pVih->bmiHeader.biHeight = height;
 
 	return S_OK;
 }
@@ -215,14 +221,12 @@ HRESULT FrameTransformFilter::Transform(
 		if (strcmp(filename+(strlen(filename)-4), ".pgm") == 0)
 		{
 			// Write current frame to PGM file
-			write_pgm_file(filename, pBufferOut,
-							FRAME_WIDTH, FRAME_HEIGHT);
+			write_pgm_file(filename, pBufferOut, width, height);
 		}
 		else if (strcmp(filename+(strlen(filename)-4), ".bmp") == 0)
 		{
 			// Write current frame to BMP file
-			write_bmp_file(filename, pBufferIn,
-							FRAME_WIDTH, FRAME_HEIGHT);
+			write_bmp_file(filename, pBufferIn,	width, height);
 		}
 		
 		// Increment frame counter and reset flag
@@ -275,30 +279,16 @@ int write_pgm_file(char *filename, unsigned char *pBuf, int w, int h)
 {
 	int x, y, val, n;
 	
-	// Process the data.
-	/*
-	int val = 0, n = 0, N = pSource->GetSize();
-	while (n < N)
-	{
-		// Modify current pixel
-		val = (pBufferIn[n] + pBufferIn[n+1] + pBufferIn[n+2]) / 3;
-		pBufferOut[n++] = val;
-		pBufferOut[n++] = val;
-		pBufferOut[n++] = val;
-	}
-	*/
-
 	FILE *f;
 	if (f = fopen(filename, "w"))
 	{
 		// Write current frame to PGM file
-		fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n",
-				FRAME_WIDTH, FRAME_HEIGHT);
-		for (int y=FRAME_HEIGHT-1 ; y>=0 ; --y)
+		fprintf(f, "P2\n# Frame captured by RobotEyez\n%d %d\n255\n", w, h);
+		for (int y=h-1 ; y>=0 ; --y)
 		{
-			for (int x=0 ; x<FRAME_WIDTH ; ++x)
+			for (int x=0 ; x<w ; ++x)
 			{
-				n = 3*(y*FRAME_WIDTH + x);
+				n = 3*(y*w + x);
 				val = (pBuf[n] + pBuf[n+1] + pBuf[n+2]) / 3;
 				fprintf(f, "%d ", val);
 			}

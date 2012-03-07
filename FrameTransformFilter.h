@@ -13,8 +13,8 @@
 #include <dshow.h>
 #include <streams.h>
 
-#define FRAME_WIDTH 640
-#define FRAME_HEIGHT 480
+//#define FRAME_WIDTH 640
+//#define FRAME_HEIGHT 480
 
 // I generated the following GUID for this filter using the
 // online GUID generator at http://www.guidgen.com/
@@ -27,7 +27,7 @@ class FrameTransformFilter : public CTransformFilter
 {
 public:
 	// Constructor
-	FrameTransformFilter();
+	FrameTransformFilter(int w, int h);
 	
 	// Provide a function to allow a PGM file copy of the
 	// next frame to be requested
@@ -43,6 +43,8 @@ public:
 	HRESULT Transform(IMediaSample *pSource, IMediaSample *pDest);
 	
 private:
+	int width; // video frame width in pixels
+	int height; // video frame height in pixels
 	int save_frame_to_file;	// flag to request saving next frame to PGM file
 	char filename[200];	// filename to use when saving a capture frame to file
 	int files_saved;	// counter for number of frames saved to PGM files
